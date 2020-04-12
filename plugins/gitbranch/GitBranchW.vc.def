@@ -1,0 +1,8 @@
+LIBRARY        GitBranch
+; DESCRIPTION    'GitBranch Far Plugin'
+EXPORTS
+  GetGlobalInfoW
+  SetStartupInfoW
+  GetPluginInfoW
+  OpenW
+  ExitFARW
