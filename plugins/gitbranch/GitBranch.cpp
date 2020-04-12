@@ -48,7 +48,7 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     file_logger = spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log");
 
     spdlog::set_default_logger(file_logger);
-    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+    spdlog::set_level(spdlog::level::debug);
 
     spdlog::info("SetStartupInfoW start");
 
@@ -78,15 +78,17 @@ HANDLE WINAPI OpenW(const struct OpenInfo *OInfo)
 void WINAPI ExitFARW(const ExitInfo* Info)
 {
     spdlog::info("ExitFARW  running: {}", Running.load());
+
     Running = false;
     PauseVariable.notify_one();
-    if (Thread && Thread->joinable())
+
+    if (Thread && Thread->joinable()) {
         Thread->join();
-    spdlog::info("ExitFARW  thread joined");
-    
+    }
+
     Thread.reset();
     
-    spdlog::info("ExitFARW  exit running: {}", Running.load());
+    spdlog::info("ExitFARW thread joined, running: {}", Running.load());
 }
 
 std::string GetGitBranchName(std::wstring);
@@ -130,6 +132,7 @@ void SetupEnvVar()
     spdlog::info("SetupEnvVar thread exit, running: {}", Running.load());
 }
 
+std::string selectCurrentBrunch(std::string&& out);
 std::string prettifyDetached(std::string&& name);
 
 std::string GetGitBranchName(std::wstring CmdRunDir)
@@ -219,21 +222,22 @@ std::string GetGitBranchName(std::wstring CmdRunDir)
     CloseHandle(stdout_rd);
     CloseHandle(stderr_rd);
 
-    std::vector<std::string> list;
-    size_t prevpos = 0;
-    size_t pos = out.find_first_of('\n');
-    while (pos != std::string::npos)
-    {
-        list.push_back(out.substr(prevpos, pos - prevpos));
-        prevpos = pos + 1;
-        pos = out.find_first_of('\n', prevpos);
-    }
+    return selectCurrentBrunch(std::move(out));
+}
 
-    for (auto item : list)
+std::string selectCurrentBrunch(std::string&& out)
+{
+    size_t begin = 0;
+    size_t end = out.find_first_of('\n');
+    while (end != std::string::npos)
     {
-        if (item.front() == '*') {
-            return prettifyDetached(item.substr(2));
+        if (out[begin] == '*') {
+            out = out.substr(begin, end - begin);
+            return prettifyDetached(out.substr(2));
         }
+
+        begin = end + 1;
+        end = out.find_first_of('\n', begin);
     }
 
     return "";
