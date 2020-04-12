@@ -49,8 +49,8 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 
 void WINAPI GetPluginInfoW(struct PluginInfo *Info)
 {
-    Info->StructSize=sizeof(*Info);
-    Info->Flags= PF_NONE;
+    Info->StructSize = sizeof(*Info);
+    Info->Flags = PF_PRELOAD;
 }
 
 HANDLE WINAPI OpenW(const struct OpenInfo *OInfo)
