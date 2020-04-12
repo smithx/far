@@ -10,6 +10,11 @@
 #include <atomic>
 #include <condition_variable>
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+
+std::shared_ptr<spdlog::logger> file_logger;
+
 const wchar_t*               EnvVar = L"GITBRANCH";
 const wchar_t*               GitCmd = L"git branch";
 std::atomic<bool>            Running = true;
@@ -37,6 +42,16 @@ void SetupEnvVar();
 
 void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 {
+    char buf[MAX_PATH];
+    size_t len = GetTempPathA(MAX_PATH, buf);
+    std::string path { buf };
+    file_logger = spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log");
+
+    spdlog::set_default_logger(file_logger);
+    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+
+    spdlog::info("SetStartupInfoW start");
+
     PSI = *psi;
     FSF = *psi->FSF;
     PSI.FSF = &FSF;
@@ -45,6 +60,8 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     SetEnvironmentVariable(EnvVar, L"");
 
     Thread = std::make_unique<std::thread>(SetupEnvVar);
+    
+    spdlog::info("SetStartupInfoW exit");
 }
 
 void WINAPI GetPluginInfoW(struct PluginInfo *Info)
@@ -60,14 +77,23 @@ HANDLE WINAPI OpenW(const struct OpenInfo *OInfo)
 
 void WINAPI ExitFARW(const ExitInfo* Info)
 {
+    spdlog::info("ExitFARW  running: {}", Running.load());
     Running = false;
     PauseVariable.notify_one();
+    if (Thread && Thread->joinable())
+        Thread->join();
+    spdlog::info("ExitFARW  thread joined");
+    
+    Thread.reset();
+    
+    spdlog::info("ExitFARW  exit running: {}", Running.load());
 }
 
 std::string GetGitBranchName(std::wstring);
 
 void SetupEnvVar()
 {
+    spdlog::info("SetupEnvVar thread stated, running: {}", Running.load());
     std::wstring prev_dir_name;
     while(Running)
     {
@@ -93,7 +119,7 @@ void SetupEnvVar()
                 branch = " (" + branch + ")";
             }
 
-            SetEnvironmentVariable(EnvVar, std::wstring(branch.begin(), branch.end()).c_str());
+            SetEnvironmentVariable(EnvVar, std::wstring(branch.begin(), branch.end()).c_str()); // XXX
             prev_dir_name = dir_name;
             PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
         }
@@ -101,6 +127,7 @@ void SetupEnvVar()
         std::unique_lock<std::mutex> lock(PauseMutex);
         PauseVariable.wait_for(lock, std::chrono::milliseconds(333), []{ return !Running; });
     }
+    spdlog::info("SetupEnvVar thread exit, running: {}", Running.load());
 }
 
 std::string prettifyDetached(std::string&& name);
