@@ -1,6 +1,6 @@
 #include "farversion.hpp"
 
-#define PLUGIN_BUILD 1
+#define PLUGIN_BUILD 11
 #define PLUGIN_DESC L"Show git branch at command propmt"
 #define PLUGIN_NAME L"GitBranch"
 #define PLUGIN_FILENAME L"gitbranch.dll"
