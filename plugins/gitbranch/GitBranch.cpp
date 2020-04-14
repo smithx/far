@@ -27,6 +27,8 @@ std::mutex                   PauseMutex;
 std::condition_variable      PauseVariable;
 std::unique_ptr<std::thread> Thread;
 
+std::wstring                 PreviousDir;
+
 void WINAPI GetGlobalInfoW(struct GlobalInfo *Info)
 {
     Info->StructSize=sizeof(struct GlobalInfo);
@@ -38,7 +40,7 @@ void WINAPI GetGlobalInfoW(struct GlobalInfo *Info)
     Info->Author=PLUGIN_AUTHOR;
 }
 
-void SetupEnvVar();
+void Run();
 
 void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 {
@@ -59,8 +61,8 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 
     SetEnvironmentVariable(EnvVar, L"");
 
-    Thread = std::make_unique<std::thread>(SetupEnvVar);
-    
+    Thread = std::make_unique<std::thread>(Run);
+
     spdlog::info("SetStartupInfoW exit");
 }
 
@@ -70,12 +72,12 @@ void WINAPI GetPluginInfoW(struct PluginInfo *Info)
     Info->Flags = PF_PRELOAD;
 }
 
-HANDLE WINAPI OpenW(const struct OpenInfo *OInfo)
+HANDLE WINAPI OpenW(const struct OpenInfo*)
 {
     return NULL;
 }
 
-void WINAPI ExitFARW(const ExitInfo* Info)
+void WINAPI ExitFARW(const ExitInfo*)
 {
     spdlog::info("ExitFARW  running: {}", Running.load());
 
@@ -87,57 +89,58 @@ void WINAPI ExitFARW(const ExitInfo* Info)
     }
 
     Thread.reset();
-    
+
     spdlog::info("ExitFARW thread joined, running: {}", Running.load());
 }
 
 std::string GetGitBranchName(std::wstring);
 
-void SetupEnvVar()
+void Run()
 {
-    spdlog::info("SetupEnvVar thread stated, running: {}", Running.load());
-    std::wstring prev_dir_name;
+    spdlog::info("Plugin thread stated, running: {}", Running.load());
     while(Running)
     {
-        //Current directory
-        std::wstring dir_name;
-        const size_t pd_length = static_cast<size_t>(PSI.PanelControl(PANEL_ACTIVE, FCTL_GETPANELDIRECTORY, 0, NULL));
-        if (pd_length) {
-            FarPanelDirectory* pd = static_cast<FarPanelDirectory*>(HeapAlloc(Heap, HEAP_ZERO_MEMORY, pd_length));
-            if (pd) {
-                pd->StructSize = sizeof(FarPanelDirectory);
-                if (PSI.PanelControl(PANEL_ACTIVE, FCTL_GETPANELDIRECTORY, static_cast<int>(pd_length), pd)) {
-                    dir_name = pd->Name;
-                }
-                HeapFree(Heap, 0, pd);
-            }
-        }
-
-        if (prev_dir_name != dir_name)
-        {
-            std::string branch = GetGitBranchName(dir_name);
-            if (branch.size())
-            {
-                branch = " (" + branch + ")";
-            }
-
-            SetEnvironmentVariable(EnvVar, std::wstring(branch.begin(), branch.end()).c_str()); // XXX
-            prev_dir_name = dir_name;
-            PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
-        }
+        PSI.AdvControl(&MainGuid, ACTL_SYNCHRO, 0, nullptr);
 
         std::unique_lock<std::mutex> lock(PauseMutex);
         PauseVariable.wait_for(lock, std::chrono::milliseconds(333), []{ return !Running; });
     }
-    spdlog::info("SetupEnvVar thread exit, running: {}", Running.load());
+    spdlog::info("Plugin thread exit, running: {}", Running.load());
+}
+
+intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
+{
+    //Get current directory
+    std::wstring directory;
+    if (const size_t length = static_cast<size_t>(PSI.PanelControl(PANEL_ACTIVE, FCTL_GETPANELDIRECTORY, 0, NULL))) {
+        if (FarPanelDirectory* pd = static_cast<FarPanelDirectory*>(HeapAlloc(Heap, HEAP_ZERO_MEMORY, length))) {
+            pd->StructSize = sizeof(FarPanelDirectory);
+            if (PSI.PanelControl(PANEL_ACTIVE, FCTL_GETPANELDIRECTORY, static_cast<int>(length), pd)) {
+                directory = pd->Name;
+            }
+            HeapFree(Heap, 0, pd);
+        }
+    }
+
+    if (PreviousDir != directory) {
+        std::string branch = GetGitBranchName(directory);
+        if (branch.size()) {
+            branch = " (" + branch + ")";
+        }
+
+        SetEnvironmentVariable(EnvVar, std::wstring(branch.begin(), branch.end()).c_str()); // XXX
+        PreviousDir = directory;
+        PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
+    }
+
+    return 0;
 }
 
 std::string selectCurrentBrunch(std::string&& out);
 std::string prettifyDetached(std::string&& name);
 
-std::string GetGitBranchName(std::wstring CmdRunDir)
+std::string GetGitBranchName(std::wstring dir)
 {
-    int                  Success;
     SECURITY_ATTRIBUTES  security_attributes;
     HANDLE               stdout_rd = INVALID_HANDLE_VALUE;
     HANDLE               stdout_wr = INVALID_HANDLE_VALUE;
@@ -178,11 +181,11 @@ std::string GetGitBranchName(std::wstring CmdRunDir)
     wcsncpy(CmdLineStr, GitCmd, MAX_PATH);
     CmdLineStr[MAX_PATH - 1] = 0;
 
-    Success = CreateProcess(nullptr, CmdLineStr, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, CmdRunDir.c_str(), &startup_info, &process_info);
+    int created = CreateProcess(nullptr, CmdLineStr, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup_info, &process_info);
     CloseHandle(stdout_wr);
     CloseHandle(stderr_wr);
 
-    if (Success) {
+    if (created) {
         CloseHandle(process_info.hThread);
     }
     else {
@@ -201,8 +204,8 @@ std::string GetGitBranchName(std::wstring CmdRunDir)
             char         buffer[bufsize];
             for (;;) {
                 DWORD n = 0;
-                int Success = ReadFile(stdout_rd, buffer, (DWORD)bufsize, &n, nullptr);
-                if (!Success || n == 0)
+                int read = ReadFile(stdout_rd, buffer, (DWORD)bufsize, &n, nullptr);
+                if (!read || n == 0)
                     break;
                 out += std::string{ buffer, n };
             }
