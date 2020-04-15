@@ -1,11 +1,11 @@
 # GitBranch Far plugin
 
-Plugin shows git branch name at command prompt area if active Far panel directory inside git repository.
+Plugin helps Far to show git branch at command prompt. It setups `%GITBRANCH%` to branch name for repository on active Far panel. You should customize "Command line settings" to insert `%GITBRANCH%` in command line prompt format string:
 
-Plugin setup `%GITBRANCH%` environment variable value to branch name. You should customize "Command line settings" to use `%GITBRANCH%` in command line prompt format:
+![](command-line-settings.png)
 
-![settings](command-line-settings.png)
+Git branch will be shown at command prompt:
 
-After that branch name will be shown at prompt:
+![](git-branch-name.png)
 
-![bra](git-branch-name.png)
+**Git must be installed and in your `%PATH%`!**
