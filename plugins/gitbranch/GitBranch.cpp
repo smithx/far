@@ -15,7 +15,7 @@
 
 std::shared_ptr<spdlog::logger> file_logger;
 
-const wchar_t*               EnvVar = L"GITBRANCH";
+const char*                  EnvVar = "GITBRANCH";
 const wchar_t*               GitCmd = L"git branch";
 std::atomic<bool>            Running = true;
 
@@ -59,7 +59,7 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     PSI.FSF = &FSF;
     Heap = GetProcessHeap();
 
-    SetEnvironmentVariable(EnvVar, L"");
+    SetEnvironmentVariableA(EnvVar, "");
 
     Thread = std::make_unique<std::thread>(Run);
 
@@ -93,8 +93,6 @@ void WINAPI ExitFARW(const ExitInfo*)
     spdlog::info("ExitFARW thread joined, running: {}", Running.load());
 }
 
-std::string GetGitBranchName(std::wstring);
-
 void Run()
 {
     spdlog::info("Plugin thread stated, running: {}", Running.load());
@@ -107,6 +105,9 @@ void Run()
     }
     spdlog::info("Plugin thread exit, running: {}", Running.load());
 }
+
+
+std::string GetGitBranchName(std::wstring);
 
 intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
 {
@@ -123,12 +124,16 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
     }
 
     if (PreviousDir != directory) {
-        std::string branch = GetGitBranchName(directory);
-        if (branch.size()) {
-            branch = " (" + branch + ")";
+        std::string branch;
+
+        if (directory.size()) {
+            branch = GetGitBranchName(directory);
+            if (branch.size()) {
+                branch = " (" + branch + ")";
+            }
         }
 
-        SetEnvironmentVariable(EnvVar, std::wstring(branch.begin(), branch.end()).c_str()); // XXX
+        SetEnvironmentVariableA(EnvVar, branch.c_str());
         PreviousDir = directory;
         PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
     }
