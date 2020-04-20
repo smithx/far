@@ -2,21 +2,28 @@
 #include <initguid.h>
 #include "version.hpp"
 #include "guid.hpp"
-#include <string>
-#include <thread>
-#include <chrono>
-
-#include <mutex>
-#include <atomic>
-#include <condition_variable>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
+#include <string>
+#include <thread>
+#include <chrono>
+#include <mutex>
+#include <atomic>
+#include <chrono>
+#include <locale>
+#include <codecvt>
+#include <condition_variable>
+
 std::shared_ptr<spdlog::logger> file_logger;
 
-const char*                  EnvVar = "GITBRANCH";
+const wchar_t*               EnvVar = L"GITBRANCH";
 const wchar_t*               GitCmd = L"git branch";
+
+std::chrono::milliseconds    SynchroFarRequestTimeout{ 333 };
+std::chrono::seconds         ForceUpdateTimeout{ 5 };
+
 std::atomic<bool>            Running = true;
 
 PluginStartupInfo            PSI;
@@ -28,6 +35,7 @@ std::condition_variable      PauseVariable;
 std::unique_ptr<std::thread> Thread;
 
 std::wstring                 PreviousDir;
+std::chrono::time_point<std::chrono::steady_clock> PreviousUpdateTimePoint = std::chrono::steady_clock::now();
 
 void WINAPI GetGlobalInfoW(struct GlobalInfo *Info)
 {
@@ -59,7 +67,7 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     PSI.FSF = &FSF;
     Heap = GetProcessHeap();
 
-    SetEnvironmentVariableA(EnvVar, "");
+    SetEnvironmentVariable(EnvVar, L"");
 
     Thread = std::make_unique<std::thread>(Run);
 
@@ -101,13 +109,14 @@ void Run()
         PSI.AdvControl(&MainGuid, ACTL_SYNCHRO, 0, nullptr);
 
         std::unique_lock<std::mutex> lock(PauseMutex);
-        PauseVariable.wait_for(lock, std::chrono::milliseconds(333), []{ return !Running; });
+        PauseVariable.wait_for(lock, SynchroFarRequestTimeout, []{ return !Running; });
     }
     spdlog::info("Plugin thread exit, running: {}", Running.load());
 }
 
 
 std::string GetGitBranchName(std::wstring);
+bool timeout();
 
 intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
 {
@@ -123,7 +132,7 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
         }
     }
 
-    if (PreviousDir != directory) {
+    if (PreviousDir != directory || timeout()) {
         std::string branch;
 
         if (directory.size()) {
@@ -133,13 +142,22 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
             }
         }
 
-        SetEnvironmentVariableA(EnvVar, branch.c_str());
-        PreviousDir = directory;
+        std::wstring wbranch = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(branch);
+
+        SetEnvironmentVariable(EnvVar, wbranch.c_str());
+        PreviousDir  = directory;
+        PreviousUpdateTimePoint = std::chrono::steady_clock::now();
         PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
     }
 
     return 0;
 }
+
+bool timeout()
+{
+    return std::chrono::steady_clock::now() - PreviousUpdateTimePoint > ForceUpdateTimeout;
+}
+
 
 std::string selectCurrentBrunch(std::string&& out);
 std::string prettifyDetached(std::string&& name);
@@ -156,8 +174,8 @@ std::string GetGitBranchName(std::wstring dir)
     std::thread          stdout_thread;
     std::thread          stderr_thread;
 
-    security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
-    security_attributes.bInheritHandle = TRUE;
+    security_attributes.nLength              = sizeof(SECURITY_ATTRIBUTES);
+    security_attributes.bInheritHandle       = TRUE;
     security_attributes.lpSecurityDescriptor = nullptr;
 
     if (!CreatePipe(&stdout_rd, &stdout_wr, &security_attributes, 0) || !SetHandleInformation(stdout_rd, HANDLE_FLAG_INHERIT, 0)) {
@@ -173,20 +191,20 @@ std::string GetGitBranchName(std::wstring dir)
     ZeroMemory(&process_info, sizeof(PROCESS_INFORMATION));
     ZeroMemory(&startup_info, sizeof(STARTUPINFO));
 
-    startup_info.cb = sizeof(STARTUPINFO);
-    startup_info.hStdInput = 0;
+    startup_info.cb         = sizeof(STARTUPINFO);
+    startup_info.hStdInput  = 0;
     startup_info.hStdOutput = stdout_wr;
-    startup_info.hStdError = stderr_wr;
+    startup_info.hStdError  = stderr_wr;
 
     if (stdout_rd || stderr_rd)
         startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
     // Make a copy because CreateProcess needs to modify string buffer
-    wchar_t  CmdLineStr[MAX_PATH];
-    wcsncpy(CmdLineStr, GitCmd, MAX_PATH);
-    CmdLineStr[MAX_PATH - 1] = 0;
+    wchar_t cmd[MAX_PATH];
+    wcsncpy(cmd, GitCmd, MAX_PATH);
+    cmd[MAX_PATH - 1] = 0;
 
-    int created = CreateProcess(nullptr, CmdLineStr, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup_info, &process_info);
+    int created = CreateProcess(nullptr, cmd, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup_info, &process_info);
     CloseHandle(stdout_wr);
     CloseHandle(stderr_wr);
 
@@ -237,8 +255,7 @@ std::string selectCurrentBrunch(std::string&& out)
 {
     size_t begin = 0;
     size_t end = out.find_first_of('\n');
-    while (end != std::string::npos)
-    {
+    while (end != std::string::npos) {
         if (out[begin] == '*') {
             out = out.substr(begin, end - begin);
             return prettifyDetached(out.substr(2));
@@ -253,10 +270,11 @@ std::string selectCurrentBrunch(std::string&& out)
 
 std::string prettifyDetached(std::string&& name)
 {
-    const char* detached_prefix = "(HEAD detached at ";
-    static const size_t detached_len = strlen(detached_prefix);
-    if (name.substr(0, detached_len) == detached_prefix) {
-        return name.substr(detached_len, name.size() - detached_len - 1) + "...";
+    const char* prefix = "(HEAD detached at ";
+    static const size_t length = strlen(prefix);
+    if (name.substr(0, length) == prefix) {
+        return name.substr(length, name.size() - length - 1) + "...";
     }
+
     return name;
 }
