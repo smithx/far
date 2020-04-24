@@ -54,7 +54,7 @@
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SrcRoot)\include;$(SrcRoot)plugins\common\unicode;$(SrcRoot)plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SrcRoot)ext\spdlog\include;$(SrcRoot)ext\FarManager\plugins\common\unicode;$(SrcRoot)ext\FarManager\plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;_CRT_NON_CONFORMING_WCSTOK;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;_WIN32_WINNT=0x0600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>true</ConformanceMode>
@@ -75,7 +75,7 @@
       <ImportLibrary>$(IntDir)$(ProjectName).lib</ImportLibrary>
     </Link>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>$(SrcRoot)plugins\common\unicode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SrcRoot)ext\FarManager\plugins\common\unicode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
 
@@ -132,11 +132,11 @@
   <ItemGroup>
     <ClCompile Include="*.cpp" />
     <ClCompile Include="*.c" />
-    <MASM Include="$(SrcRoot)plugins\common\vc_crt_fix.asm">
+    <MASM Include="$(SrcRoot)ext\FarManager\plugins\common\vc_crt_fix.asm">
       <Message>%(Identity)</Message>
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </MASM>
-    <ClCompile Include="$(SrcRoot)plugins\common\vc_crt_fix_impl.cpp">
+    <ClCompile Include="$(SrcRoot)ext\FarManager\plugins\common\vc_crt_fix_impl.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="*.hpp" />

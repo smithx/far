@@ -1,0 +1,6 @@
+[submodule "ext/FarManager"]
+    path = ext/FarManager
+    url = https://github.com/FarGroup/FarManager.git
+[submodule "ext/spdlog"]
+    path = ext/spdlog
+    url = https://github.com/gabime/spdlog.git
