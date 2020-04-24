@@ -145,7 +145,7 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
         std::wstring wbranch = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(branch);
 
         SetEnvironmentVariable(EnvVar, wbranch.c_str());
-        PreviousDir  = directory;
+        PreviousDir = directory;
         PreviousUpdateTimePoint = std::chrono::steady_clock::now();
         PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
     }

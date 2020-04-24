@@ -1,9 +1,0 @@
-﻿  GitBranch.cpp
-     Creating library D:\src\github\smithx\far\_build\vc\config\..\_output\intermediate\Release.Win32.vc15.0\plugins\gitbranch\gitbranch.lib and object D:\src\github\smithx\far\_build\vc\config\..\_output\intermediate\Release.Win32.vc15.0\plugins\gitbranch\gitbranch.exp
-  Generating code
-  2 of 4861 functions (<0.1%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  Finished generating code
-  GitBranch.vcxproj -> D:\src\github\smithx\far\_build\vc\config\..\_output\product\Release.Win32.vc15.0\plugins\gitbranch\gitbranch.dll
-  Fixing subsystem version
