@@ -35,8 +35,6 @@ std::thread                  Thread;
 std::wstring                 PreviousDir;
 std::chrono::time_point<std::chrono::steady_clock> PreviousUpdateTimePoint = std::chrono::steady_clock::now();
 
-std::shared_ptr<spdlog::logger> Logger;
-
 void WINAPI GetGlobalInfoW(struct GlobalInfo *Info)
 {
     Info->StructSize=sizeof(struct GlobalInfo);
@@ -55,12 +53,13 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     char buf[MAX_PATH];
     size_t len = GetTempPathA(MAX_PATH, buf);
     std::string path { buf };
-    Logger = spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log");
 
-    spdlog::set_default_logger(Logger);
+    spdlog::set_default_logger(spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log"));
+    spdlog::flush_on(spdlog::level::debug);
+    spdlog::set_pattern("%d %b %H:%M:%S.%e [%-5P:%5t] [%l] %v");
     spdlog::set_level(spdlog::level::debug);
 
-    spdlog::info("SetStartupInfoW start");
+    spdlog::info("SetStartupInfoW: enter");
 
     PSI = *psi;
     FSF = *psi->FSF;
@@ -71,7 +70,7 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 
     Thread = std::thread(Run);
 
-    spdlog::info("SetStartupInfoW exit");
+    spdlog::info("SetStartupInfoW: exit");
 }
 
 void WINAPI GetPluginInfoW(struct PluginInfo *Info)
@@ -87,7 +86,7 @@ HANDLE WINAPI OpenW(const struct OpenInfo*)
 
 void WINAPI ExitFARW(const ExitInfo*)
 {
-    spdlog::info("ExitFARW  running: {}", Running.load());
+    spdlog::info("ExitFARW: enter, [Running: {}]", Running.load());
 
     Running = false;
     PauseVariable.notify_one();
@@ -96,12 +95,12 @@ void WINAPI ExitFARW(const ExitInfo*)
         Thread.join();
     }
 
-    spdlog::info("ExitFARW thread joined, running: {}", Running.load());
+    spdlog::info("ExitFARW: exit, Plugin thread joined, [Running: {}]", Running.load());
 }
 
 void Run()
 {
-    spdlog::info("Plugin thread stated, running: {}", Running.load());
+    spdlog::info("Plugin thread stated, [Running: {}]", Running.load());
     while(Running)
     {
         PSI.AdvControl(&MainGuid, ACTL_SYNCHRO, 0, nullptr);
@@ -109,7 +108,7 @@ void Run()
         std::unique_lock<std::mutex> lock(PauseMutex);
         PauseVariable.wait_for(lock, SynchroFarRequestTimeout, []{ return !Running; });
     }
-    spdlog::info("Plugin thread exit, running: {}", Running.load());
+    spdlog::info("Plugin thread exit, [Running: {}]", Running.load());
 }
 
 
