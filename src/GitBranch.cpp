@@ -16,8 +16,6 @@
 #include <codecvt>
 #include <condition_variable>
 
-std::shared_ptr<spdlog::logger> file_logger;
-
 const wchar_t*               EnvVar = L"GITBRANCH";
 const wchar_t*               GitCmd = L"git branch";
 
@@ -32,10 +30,12 @@ HANDLE                       Heap;
 
 std::mutex                   PauseMutex;
 std::condition_variable      PauseVariable;
-std::unique_ptr<std::thread> Thread;
+std::thread                  Thread;
 
 std::wstring                 PreviousDir;
 std::chrono::time_point<std::chrono::steady_clock> PreviousUpdateTimePoint = std::chrono::steady_clock::now();
+
+std::shared_ptr<spdlog::logger> Logger;
 
 void WINAPI GetGlobalInfoW(struct GlobalInfo *Info)
 {
@@ -55,9 +55,9 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
     char buf[MAX_PATH];
     size_t len = GetTempPathA(MAX_PATH, buf);
     std::string path { buf };
-    file_logger = spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log");
+    Logger = spdlog::basic_logger_mt("plugin", path + "\\gitbranch.log");
 
-    spdlog::set_default_logger(file_logger);
+    spdlog::set_default_logger(Logger);
     spdlog::set_level(spdlog::level::debug);
 
     spdlog::info("SetStartupInfoW start");
@@ -69,7 +69,7 @@ void WINAPI SetStartupInfoW(const PluginStartupInfo *psi)
 
     SetEnvironmentVariable(EnvVar, L"");
 
-    Thread = std::make_unique<std::thread>(Run);
+    Thread = std::thread(Run);
 
     spdlog::info("SetStartupInfoW exit");
 }
@@ -92,11 +92,9 @@ void WINAPI ExitFARW(const ExitInfo*)
     Running = false;
     PauseVariable.notify_one();
 
-    if (Thread && Thread->joinable()) {
-        Thread->join();
+    if (Thread.joinable()) {
+        Thread.join();
     }
-
-    Thread.reset();
 
     spdlog::info("ExitFARW thread joined, running: {}", Running.load());
 }
@@ -164,91 +162,74 @@ std::string prettifyDetached(std::string&& name);
 
 std::string GetGitBranchName(std::wstring dir)
 {
-    SECURITY_ATTRIBUTES  security_attributes;
-    HANDLE               stdout_rd = INVALID_HANDLE_VALUE;
-    HANDLE               stdout_wr = INVALID_HANDLE_VALUE;
-    HANDLE               stderr_rd = INVALID_HANDLE_VALUE;
-    HANDLE               stderr_wr = INVALID_HANDLE_VALUE;
-    PROCESS_INFORMATION  process_info;
-    STARTUPINFO          startup_info;
-    std::thread          stdout_thread;
-    std::thread          stderr_thread;
+    HANDLE stdoutRd = INVALID_HANDLE_VALUE;
+    HANDLE stdoutWr = INVALID_HANDLE_VALUE;
 
-    security_attributes.nLength              = sizeof(SECURITY_ATTRIBUTES);
-    security_attributes.bInheritHandle       = TRUE;
-    security_attributes.lpSecurityDescriptor = nullptr;
+    SECURITY_ATTRIBUTES  attributes;
+    attributes.nLength              = sizeof(SECURITY_ATTRIBUTES);
+    attributes.bInheritHandle       = TRUE;
+    attributes.lpSecurityDescriptor = nullptr;
 
-    if (!CreatePipe(&stdout_rd, &stdout_wr, &security_attributes, 0) || !SetHandleInformation(stdout_rd, HANDLE_FLAG_INHERIT, 0)) {
+    if (!CreatePipe(&stdoutRd, &stdoutWr, &attributes, 0) || !SetHandleInformation(stdoutRd, HANDLE_FLAG_INHERIT, 0)) {
         return "";
     }
 
-    if (!CreatePipe(&stderr_rd, &stderr_wr, &security_attributes, 0) || !SetHandleInformation(stderr_rd, HANDLE_FLAG_INHERIT, 0)) {
-        if (stdout_rd != INVALID_HANDLE_VALUE) CloseHandle(stdout_rd);
-        if (stdout_wr != INVALID_HANDLE_VALUE) CloseHandle(stdout_wr);
-        return "";
-    }
+    PROCESS_INFORMATION  processInfo = {};
+    STARTUPINFO          startupInfo = {};
 
-    ZeroMemory(&process_info, sizeof(PROCESS_INFORMATION));
-    ZeroMemory(&startup_info, sizeof(STARTUPINFO));
+    startupInfo.cb         = sizeof(STARTUPINFO);
+    startupInfo.hStdInput  = 0;
+    startupInfo.hStdOutput = stdoutWr;
+    startupInfo.hStdError  = 0;
 
-    startup_info.cb         = sizeof(STARTUPINFO);
-    startup_info.hStdInput  = 0;
-    startup_info.hStdOutput = stdout_wr;
-    startup_info.hStdError  = stderr_wr;
-
-    if (stdout_rd || stderr_rd)
-        startup_info.dwFlags |= STARTF_USESTDHANDLES;
+    if (stdoutRd)
+        startupInfo.dwFlags |= STARTF_USESTDHANDLES;
 
     // Make a copy because CreateProcess needs to modify string buffer
     wchar_t cmd[MAX_PATH];
     wcsncpy(cmd, GitCmd, MAX_PATH);
     cmd[MAX_PATH - 1] = 0;
 
-    int created = CreateProcess(nullptr, cmd, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup_info, &process_info);
-    CloseHandle(stdout_wr);
-    CloseHandle(stderr_wr);
+    int created = CreateProcess(nullptr, cmd, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &startupInfo, &processInfo);
+    CloseHandle(stdoutWr);
 
     if (created) {
-        CloseHandle(process_info.hThread);
+        CloseHandle(processInfo.hThread);
     }
     else {
-        CloseHandle(process_info.hProcess);
-        CloseHandle(process_info.hThread);
-        CloseHandle(stdout_rd);
-        CloseHandle(stderr_rd);
+        CloseHandle(processInfo.hProcess);
+        CloseHandle(processInfo.hThread);
+        CloseHandle(stdoutRd);
         return "";
     }
 
-    std::string out;
+    std::string output;
+    std::thread rdThread;
 
-    if (stdout_rd) {
-        stdout_thread = std::thread([&]() {
+    if (stdoutRd) {
+        rdThread = std::thread([&]() {
             const size_t bufsize = 1024;
             char         buffer[bufsize];
             for (;;) {
                 DWORD n = 0;
-                int read = ReadFile(stdout_rd, buffer, (DWORD)bufsize, &n, nullptr);
+                int read = ReadFile(stdoutRd, buffer, (DWORD)bufsize, &n, nullptr);
                 if (!read || n == 0)
                     break;
-                out += std::string{ buffer, n };
+                output += std::string{ buffer, n };
             }
         });
     }
 
-    WaitForSingleObject(process_info.hProcess, INFINITE);
+    WaitForSingleObject(processInfo.hProcess, INFINITE);
 
-    CloseHandle(process_info.hProcess);
+    CloseHandle(processInfo.hProcess);
 
-    if (stdout_thread.joinable())
-        stdout_thread.join();
+    if (rdThread.joinable())
+        rdThread.join();
 
-    if (stderr_thread.joinable())
-        stderr_thread.join();
+    CloseHandle(stdoutRd);
 
-    CloseHandle(stdout_rd);
-    CloseHandle(stderr_rd);
-
-    return selectCurrentBrunch(std::move(out));
+    return selectCurrentBrunch(std::move(output));
 }
 
 std::string selectCurrentBrunch(std::string&& out)
