@@ -113,7 +113,8 @@ void Run()
 
 
 std::string GetGitBranchName(std::wstring);
-bool timeout();
+std::wstring GetEnvVar();
+bool Timeout();
 
 intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
 {
@@ -129,7 +130,7 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
         }
     }
 
-    if (PreviousDir != directory || timeout()) {
+    if (PreviousDir != directory || Timeout()) {
         std::string branch;
 
         if (directory.size()) {
@@ -141,18 +142,27 @@ intptr_t WINAPI ProcessSynchroEventW(const struct ProcessSynchroEventInfo*)
 
         std::wstring wbranch = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(branch);
 
-        SetEnvironmentVariable(EnvVar, wbranch.c_str());
         PreviousDir = directory;
         PreviousUpdateTimePoint = std::chrono::steady_clock::now();
-        PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
+
+        if (GetEnvVar() != wbranch) {
+            SetEnvironmentVariable(EnvVar, wbranch.c_str());
+            PSI.AdvControl(&MainGuid, ACTL_REDRAWALL, 0, nullptr);
+        }
     }
 
     return 0;
 }
 
-bool timeout()
+bool Timeout()
 {
     return std::chrono::steady_clock::now() - PreviousUpdateTimePoint > ForceUpdateTimeout;
+}
+
+std::wstring GetEnvVar()
+{
+    wchar_t buf[1024];
+    return { buf, GetEnvironmentVariable(EnvVar, buf, 1024) };
 }
 
 
