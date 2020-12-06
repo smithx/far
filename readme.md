@@ -4,4 +4,4 @@ Plugin helps Far Manager to show git branch at command prompt. It setups `%GITBR
 
 ![Far Manager plugin show git branch](git-branch-name.png)
 
-**Git must be installed and in your `%PATH%`!**
+**Git is not needed**
