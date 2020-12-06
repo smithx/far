@@ -194,11 +194,7 @@ struct GitInit
 std::string GetGitBranchName(std::filesystem::path dir)
 {
     GitInit git;
-    std::vector<char> out_data(2 * MAX_PATH);
     git_buf out{};
-    out.ptr = out_data.data();
-    out.asize = out_data.size();
-    out.size = 0;
     if (git_repository_discover(&out, dir.string().c_str(), 0, nullptr) != 0)
         return "";
 
