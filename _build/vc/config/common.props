@@ -54,20 +54,21 @@
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SrcRoot)ext\spdlog\include;$(SrcRoot)ext\FarManager\plugins\common\unicode;$(SrcRoot)ext\FarManager\plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SrcRoot)ext\libgit2\include\;$(SrcRoot)ext\spdlog\include;$(SrcRoot)ext\FarManager\plugins\common\unicode;$(SrcRoot)ext\FarManager\plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;_CRT_NON_CONFORMING_WCSTOK;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;_WIN32_WINNT=0x0600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>true</ConformanceMode>
       <WarningLevel>Level3</WarningLevel>
       <AdditionalOptions> /J</AdditionalOptions>
       <StringPooling>true</StringPooling>
-      <PrecompiledHeader></PrecompiledHeader>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
       <ExceptionHandling>Sync</ExceptionHandling>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;shell32.lib;ole32.lib;uuid.lib;mpr.lib;netapi32.lib;version.lib;oleaut32.lib;wbemuuid.lib;Rpcrt4.lib;psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SrcRoot)plugins\common;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>git2.lib;kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;shell32.lib;ole32.lib;uuid.lib;mpr.lib;netapi32.lib;version.lib;oleaut32.lib;wbemuuid.lib;Rpcrt4.lib;psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SrcRoot)plugins\common;$(SrcRoot)ext\libgit2\build\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateMapFile>true</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
       <!--MinimumRequiredVersion>5.0</MinimumRequiredVersion-->
@@ -78,7 +79,6 @@
       <AdditionalIncludeDirectories>$(SrcRoot)ext\FarManager\plugins\common\unicode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
@@ -88,10 +88,10 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <LinkTimeCodeGeneration></LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>
+      </LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
@@ -105,7 +105,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
@@ -117,7 +116,6 @@
       <Command>editbin /nologo /subsystem:console,5.0 /osversion:5.0 $(OutDir)$(TargetName)$(TargetExt) &gt; nul</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <ClCompile>
     </ClCompile>
@@ -128,7 +126,6 @@
       <Command>editbin /nologo /subsystem:console,5.2 /osversion:5.2 $(OutDir)$(TargetName)$(TargetExt) &gt; nul</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-
   <ItemGroup>
     <ClCompile Include="*.cpp" />
     <ClCompile Include="*.c" />
