@@ -206,7 +206,10 @@ std::string GetGitBranchName(std::filesystem::path dir)
     switch (git_repository_head(&head, repo))
     {
     case 0: //ok
-        return git_reference_shorthand(head);
+        if (git_repository_head_detached(repo))
+            return std::string{ git_oid_tostr_s(git_reference_target(head)) }.substr(0, 9) + "...";
+        else
+            return git_reference_shorthand(head);
     case GIT_EUNBORNBRANCH: // non-existing branch
     case GIT_ENOTFOUND: // HEAD is missing
         return "HEAD (no branch)";
