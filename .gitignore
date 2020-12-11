@@ -1,6 +1,5 @@
 #Artefacts
 /_build/vc/_output
-/enc/build
 Debug.*.vc*
 Release.*.vc*
 Debug.*.gcc

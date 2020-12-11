@@ -40,6 +40,7 @@
     <IntDir>$(OutputsRoot)intermediate\$(CurPath)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <EmbedManifest>false</EmbedManifest>
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <LinkIncremental>false</LinkIncremental>
@@ -54,7 +55,7 @@
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SrcRoot)ext\libgit2\include\;$(SrcRoot)ext\spdlog\include;$(SrcRoot)ext\FarManager\plugins\common\unicode;$(SrcRoot)ext\FarManager\plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SrcRoot)ext\libgit2\include;$(SrcRoot)ext\spdlog\include;$(SrcRoot)ext\FarManager\plugins\common\unicode;$(SrcRoot)ext\FarManager\plugins\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;_CRT_NON_CONFORMING_WCSTOK;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;_WIN32_WINNT=0x0600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>true</ConformanceMode>
@@ -66,9 +67,15 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
+    <PreBuildEvent>
+      <Command>$(SrcRoot)_build\vc\build-libgit2.cmd $(SrcRoot)ext\libgit2\build\$(Platform) $(Platform) $(Configuration)</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>build libgit static lib</Message>
+    </PreBuildEvent>
     <Link>
-      <AdditionalDependencies>git2.lib;kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;shell32.lib;ole32.lib;uuid.lib;mpr.lib;netapi32.lib;version.lib;oleaut32.lib;wbemuuid.lib;Rpcrt4.lib;psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SrcRoot)plugins\common;$(SrcRoot)ext\libgit2\build\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>git2.lib;winhttp.lib;Crypt32.lib;kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;shell32.lib;ole32.lib;uuid.lib;mpr.lib;netapi32.lib;version.lib;oleaut32.lib;wbemuuid.lib;Rpcrt4.lib;psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SrcRoot)plugins\common;$(SrcRoot)ext\libgit2\build\$(Platform)\$(ConfigurationName);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateMapFile>true</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
       <!--MinimumRequiredVersion>5.0</MinimumRequiredVersion-->

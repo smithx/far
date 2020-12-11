@@ -10,6 +10,9 @@
     <ClInclude Include="*.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="*.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="$(SrcRoot)ext\FarManager\plugins\common\vc_crt_fix.asm">
