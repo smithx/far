@@ -19,8 +19,6 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
-#include <locale>
-#include <codecvt>
 #include <condition_variable>
 #include <vector>
 
