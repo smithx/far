@@ -193,7 +193,7 @@ std::string GetGitBranchName(std::filesystem::path dir)
 {
     GitInit git;
     git_buf out{};
-    if (git_repository_discover(&out, dir.string().c_str(), 0, nullptr) != 0)
+    if (git_repository_discover(&out, dir.u8string().c_str(), 0, nullptr) != 0)
         return "";
 
     GitRepository repo;
