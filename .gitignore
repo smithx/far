@@ -1,5 +1,8 @@
 #Artefacts
 /_build/vc/_output
+/build-x64
+/build-Win32
+/out
 Debug.*.vc*
 Release.*.vc*
 Debug.*.gcc
@@ -14,6 +17,7 @@ ipch
 *.opendb
 *.vcxproj.user
 *.suo
+CMakeSettings.json
 
 #InteliJ
 /.idea

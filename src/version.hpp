@@ -1,6 +1,8 @@
 #include "farversion.hpp"
 
-#define PLUGIN_BUILD 19
+// PLUGIN_BUILD is defined on compiler command line. Set version number in CMakeLists.txt
+// project(gitbranch VERSION x.y.Z) where Z is value for PLUGIN_BUILD
+
 #define PLUGIN_DESC L"Show git branch at command propmt"
 #define PLUGIN_NAME L"GitBranch"
 #define PLUGIN_FILENAME L"gitbranch.dll"
