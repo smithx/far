@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(gitbranch VERSION 3.0.19)
+project(gitbranch VERSION 3.0.21)
 
 add_compile_options(/MP /std:c++17)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Functions to help placing dependencies into "ext" folder in Visual studio.
 function(get_all_targets _result _dir)

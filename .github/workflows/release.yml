@@ -1,0 +1,68 @@
+name: release
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  VER: 3.0.21
+  
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - name: Create Build Environment
+      shell: cmd
+      run: cmake -E make_directory ${{github.workspace}}\build-x64 && cmake -E make_directory ${{github.workspace}}\build-Win32
+
+    - name: Configure x64 
+      shell: cmd
+      run: cmake -G "Visual Studio 16 2019" -A x64 -S ${{github.workspace}} -B ${{github.workspace}}\build-x64
+
+    - name: Build x64
+      shell: cmd
+      run: cmake --build ${{github.workspace}}\build-x64 --config %BUILD_TYPE% && cd ${{github.workspace}}\build-x64 && cpack -G ZIP gitbranch
+
+    - name: Configure Win32
+      shell: cmd
+      run: cmake -G "Visual Studio 16 2019" -A Win32 -S %GITHUB_WORKSPACE% -B ${{github.workspace}}\build-Win32
+
+    - name: Build Win32
+      shell: cmd
+      run: cmake --build ${{github.workspace}}\build-Win32 --config %BUILD_TYPE% && cd ${{github.workspace}}\build-Win32 && cpack -G ZIP gitbranch
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{env.ver}}
+        release_name: Release ${{env.ver}}
+        draft: false
+        prerelease: false
+ 
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{github.workspace}}/build-Win32/gitbranch-${{env.ver}}-win32.zip
+        asset_name: gitbranch-${{env.ver}}-win32.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{github.workspace}}/build-x64/gitbranch-${{env.ver}}-win64.zip
+        asset_name: gitbranch-${{env.ver}}-win64.zip
+        asset_content_type: application/zip
