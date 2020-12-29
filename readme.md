@@ -7,4 +7,5 @@ Plugin helps Far Manager to show git branch at command prompt. It setups `%GITBR
 **Git is not needed**
 
 
+
 ![build](https://github.com/smithx/far/workflows/build/badge.svg)
