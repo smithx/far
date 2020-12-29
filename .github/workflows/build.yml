@@ -21,16 +21,12 @@ jobs:
       with:
         submodules: 'recursive'
 
-    - name: Create Build Environment ${{matrix.platform}}
-      shell: cmd
-      run: cmake -E make_directory %GITHUB_WORKSPACE%\build-${{matrix.platform}}
-
     - name: Configure ${{matrix.platform}}
       shell: cmd
-      run: cmake -G "Visual Studio 16 2019" -A ${{matrix.platform}} -S %GITHUB_WORKSPACE% -B %GITHUB_WORKSPACE%\build-${{matrix.platform}}
+      run: cmake -G "Visual Studio 16 2019" -A ${{matrix.platform}} -S ${{github.workspace}} -B ${{github.workspace}}/build
 
     - name: Build ${{matrix.platform}}
       shell: cmd
-      run: cmake --build %GITHUB_WORKSPACE%\build-${{matrix.platform}} --config %BUILD_TYPE%
+      run: cmake --build ${{github.workspace}}/build --config %BUILD_TYPE%
 
     
