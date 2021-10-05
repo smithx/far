@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(gitbranch VERSION 3.0.21)
+project(gitbranch VERSION 3.0.22)
 
 add_compile_options(/MP /std:c++17)
 
