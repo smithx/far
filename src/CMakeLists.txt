@@ -8,6 +8,10 @@ add_library(gitbranch MODULE
 target_link_libraries(gitbranch PRIVATE git2 spdlog::spdlog_header_only far)
 target_compile_definitions(gitbranch PRIVATE PLUGIN_BUILD=${PROJECT_VERSION_PATCH})
 
+set_property(
+    TARGET gitbranch
+    PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_GENERATOR ZIP)
 set(CPACK_BINARY_ZIP ON)
