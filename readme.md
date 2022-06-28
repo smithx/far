@@ -8,4 +8,4 @@ Plugin helps Far Manager to show git branch at command prompt. It setups `%GITBR
 
 
 
-![build](https://github.com/smithx/far/workflows/build/badge.svg)
+![build](https://github.com/smithx/far/workflows/release/badge.svg)
