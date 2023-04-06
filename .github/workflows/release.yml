@@ -5,11 +5,11 @@ on:
 
 env:
   BUILD_TYPE: Release
-  VER: 3.0.22
+  VER: 3.0.23
   
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     steps:
     - uses: actions/checkout@v2
