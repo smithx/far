@@ -6,4 +6,4 @@
     url = https://github.com/gabime/spdlog.git
 [submodule "ext/libgit2"]
 	path = ext/libgit2
-	url = git@github.com:libgit2/libgit2.git
+	url = git@github.com:smithx/libgit2.git
