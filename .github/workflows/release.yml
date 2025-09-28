@@ -5,7 +5,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  VER: 3.0.23
+  VER: 3.0.25
 
 jobs:
   build:
