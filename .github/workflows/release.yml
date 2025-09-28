@@ -6,7 +6,7 @@ on:
 env:
   BUILD_TYPE: Release
   VER: 3.0.23
-  
+
 jobs:
   build:
     runs-on: windows-2019
@@ -20,9 +20,9 @@ jobs:
       shell: cmd
       run: cmake -E make_directory ${{github.workspace}}\build-x64 && cmake -E make_directory ${{github.workspace}}\build-Win32
 
-    - name: Configure x64 
+    - name: Configure x64
       shell: cmd
-      run: cmake -G "Visual Studio 16 2019" -A x64 -S ${{github.workspace}} -B ${{github.workspace}}\build-x64
+      run: cmake -G "Visual Studio 17 2022" -A x64 -S ${{github.workspace}} -B ${{github.workspace}}\build-x64
 
     - name: Build x64
       shell: cmd
@@ -30,7 +30,7 @@ jobs:
 
     - name: Configure Win32
       shell: cmd
-      run: cmake -G "Visual Studio 16 2019" -A Win32 -S %GITHUB_WORKSPACE% -B ${{github.workspace}}\build-Win32
+      run: cmake -G "Visual Studio 17 2022" -A Win32 -S %GITHUB_WORKSPACE% -B ${{github.workspace}}\build-Win32
 
     - name: Build Win32
       shell: cmd
@@ -46,7 +46,7 @@ jobs:
         release_name: Release ${{env.ver}}
         draft: false
         prerelease: false
- 
+
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
