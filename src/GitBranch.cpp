@@ -179,8 +179,8 @@ struct GitReference
 {
     operator git_reference* () const { return ref; }
     git_reference** operator&() { return &ref; }
-    ~GitReference() { git_reference_free(ref); }
-    git_reference* ref;
+    ~GitReference() { if (ref != nullptr) { git_reference_free(ref); } }
+    git_reference* ref = nullptr;
 };
 
 struct GitInit
