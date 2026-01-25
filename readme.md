@@ -4,7 +4,14 @@ Plugin helps Far Manager to show git branch at command prompt. It setups `%GITBR
 
 ![Far Manager plugin show git branch](git-branch-name.png)
 
-**Git is not needed**
+## Features
+
+- Shows current git branch name in the command prompt
+- Adds `!` suffix if there are uncommitted changes in the repository
+- Shows short commit hash for detached HEAD state (e.g., `abc1234...`)
+- Shows `HEAD (no branch)` for repositories without a branch
+
+**Git is not needed** - plugin uses libgit2 library directly
 
 
 
