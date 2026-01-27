@@ -1,4 +1,4 @@
-﻿#include <plugin.hpp>
+#include <plugin.hpp>
 #include <initguid.h>
 #include "version.hpp"
 #include "guid.hpp"
@@ -7,6 +7,8 @@
 #include <git2/global.h>
 #include <git2/refs.h>
 #include <git2/repository.h>
+#include <git2/buffer.h>
+#include <git2/status.h>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -116,7 +118,7 @@ void Run()
 }
 
 
-std::string GetGitBranchName(std::filesystem::path);
+std::string GetGitBranchName(const std::filesystem::path&);
 std::string GetEnvVar();
 bool Timeout();
 
@@ -183,35 +185,83 @@ struct GitReference
     git_reference* ref = nullptr;
 };
 
+struct GitBuf
+{
+    GitBuf() : buf{} {}
+    ~GitBuf() { git_buf_dispose(&buf); }
+    operator git_buf* () { return &buf; }
+    git_buf* operator&() { return &buf; }
+    const char* ptr() const { return buf.ptr; }
+    git_buf buf{};
+};
+
 struct GitInit
 {
     GitInit() { git_libgit2_init(); }
     ~GitInit() { git_libgit2_shutdown(); }
 };
 
-std::string GetGitBranchName(std::filesystem::path dir)
+static int status_cb(const char* path, unsigned int status_flags, void* payload)
+{
+    if (status_flags == GIT_STATUS_CURRENT)
+        return 0;
+
+    *static_cast<bool*>(payload) = true;
+    return 1;
+}
+
+bool HasUncommittedChanges(git_repository* repo)
+{
+    bool has_changes = false;
+    
+    // Оптимизированные опции для быстрой проверки:
+    // - NO_REFRESH: не обновлять индекс с диска (самая важная оптимизация)
+    // - EXCLUDE_SUBMODULES: пропускать подмодули (могут быть очень медленными)
+    // - INCLUDE_UNTRACKED: включаем для проверки новых файлов
+    // Не включаем RENAMES_* - поиск переименований очень медленный
+    // Не включаем RECURSE_UNTRACKED_DIRS - не рекурсивно проверять неотслеживаемые директории
+    git_status_options opts = GIT_STATUS_OPTIONS_INIT;
+    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
+                 GIT_STATUS_OPT_NO_REFRESH |
+                 GIT_STATUS_OPT_EXCLUDE_SUBMODULES;
+    opts.show = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+    
+    git_status_foreach_ext(repo, &opts, status_cb, &has_changes);
+    return has_changes;
+}
+
+std::string GetGitBranchName(const std::filesystem::path& dir)
 {
     GitInit git;
-    git_buf out{};
+    GitBuf out;
     if (git_repository_discover(&out, dir.u8string().c_str(), 0, nullptr) != 0)
         return "";
 
     GitRepository repo;
-    if (git_repository_open(&repo, out.ptr) != 0)
+    if (git_repository_open(&repo, out.ptr()) != 0)
         return "";
 
     GitReference head;
+    std::string branch_name;
     switch (git_repository_head(&head, repo))
     {
     case 0: //ok
         if (git_repository_head_detached(repo))
-            return std::string{ git_oid_tostr_s(git_reference_target(head)) }.substr(0, 9) + "...";
+            branch_name = std::string{ git_oid_tostr_s(git_reference_target(head)) }.substr(0, 9) + "...";
         else
-            return git_reference_shorthand(head);
+            branch_name = git_reference_shorthand(head);
+        break;
     case GIT_EUNBORNBRANCH: // non-existing branch
     case GIT_ENOTFOUND: // HEAD is missing
-        return "HEAD (no branch)";
+        branch_name = "HEAD (no branch)";
+        break;
     default: // error
         return "";
     }
+
+    // Добавляем "!" если есть незакоммиченные изменения
+    if (HasUncommittedChanges(repo))
+        branch_name += "!";
+
+    return branch_name;
 }
